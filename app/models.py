@@ -3,7 +3,8 @@
 from banjo.models import Model, StringField, IntegerField, FloatField, BooleanField
 import datetime
 
-
+class User(Model):
+    user_name = StringField()
 
 class Scavenger_hunt(Model):
     # user_posted = StringField()
@@ -12,7 +13,7 @@ class Scavenger_hunt(Model):
     # image = BlobField()
     description = StringField()
     year = IntegerField()
-    month = IntegerField*()
+    month = IntegerField()
     day = IntegerField()
     time_limit = BooleanField()
     code = StringField()
@@ -21,6 +22,7 @@ class Scavenger_hunt(Model):
     # user_completed = StringField()
     # comments = StringField()
     likes = IntegerField()
+    current = BooleanField()
     
 
     def json_response(self):
@@ -29,7 +31,7 @@ class Scavenger_hunt(Model):
             # 'user_posted' : self.user_posted,
             'description' : self.description,
             # 'image' : self.image,
-            'time_limit' : print(f"{self.year}-{self.month}-{self.day}"),
+            'time_limit' : f"{self.year}-{self.month}-{self.day}",
             # 'comments' : self.comments,
             'likes' : self.likes,
         }
@@ -41,7 +43,7 @@ class Scavenger_hunt(Model):
             'description' : self.description,
             'hint' : self.hint,
             # 'image' : self.image,
-            'time_limit' : print(f"{self.year}-{self.month}-{self.day}"),
+            'time_limit' : f"{self.year}-{self.month}-{self.day}",
             # 'comments' : self.comments,
             'likes' : self.likes,
         }
@@ -51,9 +53,9 @@ class Scavenger_hunt(Model):
         self.likes += 1
         self.save()
 
-    def create_code(self):
-        if len(self.code) < 5:
-            print("Your code needs to be at least 6 letters long!")
+    # def check_code(self):
+    #     if len(self.code) < 5:
+    #         print("Your code needs to be at least 6 letters long!")
 
     def check_code(self, user_code):
         #checks if the code is correct
@@ -65,7 +67,7 @@ class Scavenger_hunt(Model):
             print("Not Correct...")
         self.save()
     
-    def calculate_time(self, current_time):
+    def calculate_time(self):
         current_time = datetime.datetime.now()
         #checks the year
         if current_time.year > self.year:

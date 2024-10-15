@@ -16,6 +16,7 @@ def new_scavenger_hunt(args):
         code = args['code'],
         complete = False,
         active = True,
+        current = False,
         likes = 0
     )
 
@@ -26,15 +27,23 @@ def new_scavenger_hunt(args):
 
 @route_get(BASE_URL + 'get')
 def get_scavenger_hunt(args):
-    if Scavenger_hunt.active == True:
+    if Scavenger_hunt.objects.filter(active=True):
         get_scavenger_hunt = Scavenger_hunt.objects.order_by('?')
-        return{'riddle':get_scavenger_hunt[0].json_response()}
+        get_scavenger_hunt[0].current = True
+        get_scavenger_hunt[0].active = False
+        return{'scavenger hunt':get_scavenger_hunt[0].json_response()}
     
 
-@route_post(BASE_URL + 'like')
-def increase_like(args):
-    #if the user has a current scavenger hunt
-    current_scavenger_hunt = Scavenger_hunt.objects.exists()
-    current_scavenger_hunt.increase_likes()
+# @route_post(BASE_URL + 'like')
+# def increase_like(args):
+#     #if the user has a current scavenger hunt
+#     if Scavenger_hunt.current == True:
+#         Scavenger_hunt.increase_likes()
         
-    return{'fortune':current_scavenger_hunt.json_response()}
+#     return{'scavenger hunt':Scavenger_hunt.json_response()}
+
+# @route_get(BASE_URL + 'hint')
+# def get_hint(args):
+#     #if the user has a current scavenger hunt
+#     if Scavenger_hunt.current == True:
+#         return{'scavenger hunt':Scavenger_hunt.hint_response()}
