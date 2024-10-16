@@ -32,18 +32,33 @@ def get_scavenger_hunt(args):
         get_scavenger_hunt[0].current = True
         get_scavenger_hunt[0].active = False
         return{'scavenger hunt':get_scavenger_hunt[0].json_response()}
+    else:
+        return{'Error':'you already have a scavenger hunt!'}
     
 
-# @route_post(BASE_URL + 'like')
-# def increase_like(args):
-#     #if the user has a current scavenger hunt
-#     if Scavenger_hunt.current == True:
-#         Scavenger_hunt.increase_likes()
+#adds likes to the scavenger hunt
+@route_post(BASE_URL + 'like')
+def increase_like(args):
+        if Scavenger_hunt.objects.filter(current=True).exists:
+            current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
+            current_scavenger_hunt.increase_likes()
         
-#     return{'scavenger hunt':Scavenger_hunt.json_response()}
+            return{'scavenger hunt':current_scavenger_hunt.json_response()}
+        else:
+            return{'Error':'no scaveneger hunt exists'}
 
-# @route_get(BASE_URL + 'hint')
-# def get_hint(args):
-#     #if the user has a current scavenger hunt
-#     if Scavenger_hunt.current == True:
-#         return{'scavenger hunt':Scavenger_hunt.hint_response()}
+@route_get(BASE_URL + 'hint')
+def get_hint(args):
+    #if the user has a current scavenger hunt
+    if Scavenger_hunt.objects.filter(current=True).exists:
+        current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
+        return{'scavenger hunt':current_scavenger_hunt.hint_response()}
+    
+@route_post(BASE_URL + 'check_code', args={'code': str})
+def complete_scavenger_hunt(args):
+    if Scavenger_hunt.objects.filter(current=True).exists:
+        current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
+        if current_scavenger_hunt.check_code(args['code']) == True:
+            return{'Correct!':'scavenger hunt completed'}
+        else:
+            return {'Error':'unaccurate code, try again'}

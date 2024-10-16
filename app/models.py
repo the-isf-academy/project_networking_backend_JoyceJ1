@@ -1,13 +1,13 @@
 # models.py
 
-from banjo.models import Model, StringField, IntegerField, FloatField, BooleanField
+from banjo.models import Model, StringField, IntegerField, FloatField, BooleanField, ForeignKey
 import datetime
 
-class User(Model):
-    user_name = StringField()
+# class User(Model):
+#     user_name = StringField()
 
 class Scavenger_hunt(Model):
-    # user_posted = StringField()
+    # user_posted = ForeignKey(User)
     location = StringField()
     hint = StringField()
     # image = BlobField()
@@ -60,12 +60,13 @@ class Scavenger_hunt(Model):
     def check_code(self, user_code):
         #checks if the code is correct
         if self.code == user_code:
-            print("Congratulations!")
             self.complete = True
             self.active = False
+            self.save()
+            return True
         else:
-            print("Not Correct...")
-        self.save()
+            return False
+
     
     def calculate_time(self):
         current_time = datetime.datetime.now()
