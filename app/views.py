@@ -27,11 +27,15 @@ def new_scavenger_hunt(args):
 
 @route_get(BASE_URL + 'get')
 def get_scavenger_hunt(args):
-    if Scavenger_hunt.objects.filter(active=True):
-        get_scavenger_hunt = Scavenger_hunt.objects.order_by('?')
-        get_scavenger_hunt[0].current = True
-        get_scavenger_hunt[0].active = False
-        return{'scavenger hunt':get_scavenger_hunt[0].json_response()}
+    for scavenger_hunt in Scavenger_hunt.objects.filter(active=True):
+        if scavenger_hunt.check_active() == True:
+            print(scavenger_hunt)
+            get_scavenger_hunt = scavenger_hunt.objects.order_by('?')
+            get_scavenger_hunt[0].current = True
+            get_scavenger_hunt[0].active = False
+            print(scavenger_hunt)
+            print(get_scavenger_hunt)
+            return{'scavenger hunt':get_scavenger_hunt[0].json_response()}
     else:
         return{'Error':'you already have a scavenger hunt!'}
     
@@ -54,7 +58,7 @@ def get_hint(args):
         current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
         return{'scavenger hunt':current_scavenger_hunt.hint_response()}
     
-@route_post(BASE_URL + 'check_code', args={'code': str})
+@route_post(BASE_URL + 'complete', args={'code': str})
 def complete_scavenger_hunt(args):
     if Scavenger_hunt.objects.filter(current=True).exists:
         current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
@@ -62,3 +66,4 @@ def complete_scavenger_hunt(args):
             return{'Correct!':'scavenger hunt completed'}
         else:
             return {'Error':'unaccurate code, try again'}
+        

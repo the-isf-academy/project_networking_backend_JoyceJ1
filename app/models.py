@@ -84,6 +84,8 @@ class Scavenger_hunt(Model):
         self.save()
 
     def check_active(self):
-        if self.complete == False and self.time_limit == True:
-            self.active = True
-        self.save()
+        self.calculate_time()
+        if self.complete == False and self.current == False and self.time_limit == True:
+            return True
+        else:
+            return False
