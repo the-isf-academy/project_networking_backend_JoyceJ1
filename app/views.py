@@ -2,12 +2,31 @@
 
 from banjo.urls import route_get, route_post
 from settings import BASE_URL
-from .models import Scavenger_hunt
+from .models import Scavenger_hunt, User
 import datetime
 
-@route_post(BASE_URL + 'new', args={'location':str, 'hint': str, 'description': str, 'year': int, 'month': int, 'day': int, 'code': str})
+@route_post(BASE_URL + 'create_user', args={'username': str})
+def create_user(args):
+    if User.objects.filter(username=args['username']).exists():
+        return {'error': 'Username already exists. Please choose a different username.'}
+    
+    new_user = User(
+        username=args['username']
+    )
+    new_user.save()
+    return{'user':new_user.user_info_response()}
+
+
+@route_post(BASE_URL + 'new', args={'username':str,'location':str, 'hint': str, 'description': str, 'year': int, 'month': int, 'day': int, 'code': str})
 def new_scavenger_hunt(args):
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    
     new_scavenger_hunt = Scavenger_hunt(
+        # user_posted=user,
+        my_user = user,
         location = args['location'],
         hint = args['hint'],
         description = args['description'],
@@ -23,6 +42,7 @@ def new_scavenger_hunt(args):
     )
 
     new_scavenger_hunt.save()
+    user.increase_posted_hunts()
 
     return {'scavenger hunt': new_scavenger_hunt.json_response()}
 
@@ -36,20 +56,26 @@ def new_scavenger_hunt(args):
 #             scavenger_hunt.append(hunt.everything())
 
 #         return {'scavenger hunts':scavenger_hunt}
-    
 
-@route_get(BASE_URL + 'get')
+@route_get(BASE_URL + 'get', args={'username': str})
 def get_active_scavenger_hunt(args):
-    if Scavenger_hunt.objects.filter(current=True).exists():
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    
+    if Scavenger_hunt.objects.filter(current=True, my_user=user).exists():
         return {'error': 'A current scavenger hunt is already in progress'}
     
     #if hunt_limit == True:
         #return {'err0r': 'Already completed scavenger today, try again tomorrow'}
     today = datetime.date.today()
-    if Scavenger_hunt.objects.filter(completed_day=today.day).exists():
+    if Scavenger_hunt.objects.filter(completed_day=today.day, my_user=user).exists():
         return {'error': 'Already completed scavenger today, try again tomorrow'}
 
-    active_hunts = Scavenger_hunt.objects.filter(active=True)
+    # active_hunts = Scavenger_hunt.objects.filter(active=True).exclude(user_posted=user)
+    active_hunts = Scavenger_hunt.objects.filter(active=True) | Scavenger_hunt.objects.filter(current=True, my_user=user)
+    active_hunts = active_hunts.exclude(my_user=user).distinct()
 
     for hunt in active_hunts:
         # print(f"Processing Hunt: {hunt.description}, Date: {hunt.year}-{hunt.month}-{hunt.day}")
@@ -62,15 +88,21 @@ def get_active_scavenger_hunt(args):
                 # print(f"Selected Hunt: {selected_hunt.description}, Date: {selected_hunt.year}-{selected_hunt.month}-{selected_hunt.day}")
                 selected_hunt.current = True
                 selected_hunt.active = False
+                selected_hunt.my_user = user
                 selected_hunt.save()
                 return {'scavenger_hunt': selected_hunt.json_response()}
 
     return {'error': 'No active scavenger hunts available'}
 
-@route_get(BASE_URL + 'current')
+@route_get(BASE_URL + 'current', args={'username': str})
 def show_current(args):
-    if Scavenger_hunt.objects.filter(current=True).exists():
-            current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+
+    if Scavenger_hunt.objects.filter(current=True, my_user=user).exists():
+            current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True, my_user=user)[0]
             if current_scavenger_hunt.past_time == False:
                 return{'scavenger hunt':current_scavenger_hunt.json_response()}
             else:
@@ -78,26 +110,31 @@ def show_current(args):
     else:
         return{'Error':'no scavenger hunt exists'}
 
-#adds likes to the scavenger hunt
-@route_post(BASE_URL + 'like')
+#adds likes to completed scavenger hunts
+@route_post(BASE_URL + 'like', args={'username': str, 'hunt_id': int})
 def increase_like(args):
-        if Scavenger_hunt.objects.filter(current=True).exists():
-            current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
-            current_scavenger_hunt.calculate_time()
-            if current_scavenger_hunt.past_time ==  False:
-                current_scavenger_hunt.increase_likes()
-        
-                return{'scavenger hunt':current_scavenger_hunt.json_response()}
-            else:
-                return{'scavenger hunt':'over time limit'}
-        else:
-            return{'Error':'no scavenger hunt exists'}
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    
+    if Scavenger_hunt.objects.filter(id=args['hunt_id'], my_user=user, complete=True).exists():
+        completed_hunt = Scavenger_hunt.objects.get(id=args['hunt_id'], my_user=user)
+        completed_hunt.increase_likes()
+        return{'scavenger hunt':completed_hunt.json_response()}
+    else:
+        return{'Error':'no completed scavenger hunt exists'}
 
-@route_get(BASE_URL + 'hint')
+@route_get(BASE_URL + 'hint', args={'username': str})
 def get_hint(args):
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    
     #if the user has a current scavenger hunt
-    if Scavenger_hunt.objects.filter(current=True).exists():
-        current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
+    if Scavenger_hunt.objects.filter(current=True, my_user=user).exists():
+        current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True, my_user=user)[0]
         current_scavenger_hunt.calculate_time()
         if current_scavenger_hunt.past_time ==  False:
             return{'scavenger hunt':current_scavenger_hunt.hint_response()}
@@ -106,14 +143,21 @@ def get_hint(args):
     else:
         return{'Error':'no scavenger hunt exists'}
     
-@route_post(BASE_URL + 'check', args={'code': str})
+@route_post(BASE_URL + 'check', args={'username': str, 'code': str})
 def complete_scavenger_hunt(args):
-    if Scavenger_hunt.objects.filter(current=True).exists():
-        current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True)[0]
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    
+    if Scavenger_hunt.objects.filter(current=True, my_user=user).exists():
+        current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True, my_user=user)[0]
         if current_scavenger_hunt.check_code(args['code']) == True and current_scavenger_hunt.past_time == False:
             current_scavenger_hunt.current = False
+            current_scavenger_hunt.completed_user = args['username']
             current_scavenger_hunt.calc_time_completed()
             current_scavenger_hunt.save()
+            user.increase_user_completed()
             return{'Correct!':'scavenger hunt completed'}
         else:
             return {'error': 'Inaccurate code or over time limit'}
@@ -121,16 +165,76 @@ def complete_scavenger_hunt(args):
         return {'error': 'No scavenger hunt exists'}
 
 
-@route_get(BASE_URL + 'completed_hunts')
-def complete_scavenger_hunt(args):
+# @route_get(BASE_URL + 'completed_hunts', args={'username': str})
+# def complete_scavenger_hunt(args):
+#     try:
+#         user = User.objects.get(username=args['username'])
+#     except User.DoesNotExist:
+#         return {'error': 'User does not exist. Please create a user first.'}
+#     #check user
+#     completed_scavenger_hunts = []
+
+#     if len(Scavenger_hunt.objects.filter(complete=True, my_user=user)) > 0:
+
+#         for hunt in Scavenger_hunt.objects.filter(complete=True, my_user=user):
+#             completed_scavenger_hunts.append(hunt.completed_response())
+
+#         return {'scavenger hunts':completed_scavenger_hunts}
+#     else:
+#         return {'scavenger hunts':'No completed scavenger hunt'}
+
+@route_post(BASE_URL + 'delete_user', args={'username': str})
+def delete_user(args):
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    
+    user.delete_with_hunts()
+    return {'status': 'User and related scavenger hunts deleted'}
+
+@route_post(BASE_URL + 'delete_hunt', args={'username': str, 'hunt_id': int})
+def delete_scavenger_hunt(args):
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    
+    hunt = Scavenger_hunt.objects.get(id=args['hunt_id'], my_user=user)
+    hunt.delete()
+    return {'status': 'Scavenger hunt deleted successfully'}
+
+# @route_get(BASE_URL + 'view_user', args={'username': str})
+# def create_user(args):
+#     try:
+#         user = User.objects.get(username=args['username'])
+#     except User.DoesNotExist:
+#         return {'error': 'User does not exist. Please create a user first.'}
+    
+#     return{'user':user.user_info_response()}
+
+@route_get(BASE_URL + 'view_user', args={'username': str})
+def view_user(args):
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+
+    # Get completed scavenger hunts for the user
     completed_scavenger_hunts = []
-
-    if len(Scavenger_hunt.objects.filter(complete=True)) > 0:
-
-        for hunt in Scavenger_hunt.objects.filter(complete=True):
+    if Scavenger_hunt.objects.filter(complete=True, my_user=user).exists():
+        for hunt in Scavenger_hunt.objects.filter(complete=True, my_user=user.user_completed):
             completed_scavenger_hunts.append(hunt.completed_response())
 
-        return {'scavenger hunts':completed_scavenger_hunts}
-    else:
-        return {'scavenger hunts':'No completed scavenger hunt'}
+    # Get posted scavenger hunts for the user
+    posted_scavenger_hunts = []
+    if Scavenger_hunt.objects.filter(my_user=user).exists():
+        for hunt in Scavenger_hunt.objects.filter(my_user=user):
+            posted_scavenger_hunts.append(hunt.completed_response())
 
+    # Combine user info with completed and posted hunts
+    user_info = user.user_info_response()
+    user_info['completed_scavenger_hunts'] = completed_scavenger_hunts
+    user_info['posted_scavenger_hunts'] = posted_scavenger_hunts
+
+    return {'user': user_info}

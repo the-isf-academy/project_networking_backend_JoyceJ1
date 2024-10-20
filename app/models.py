@@ -3,11 +3,37 @@
 from banjo.models import Model, StringField, IntegerField, FloatField, BooleanField, ForeignKey
 import datetime
 
-# class User(Model):
-#     user_name = StringField()
+class User(Model):
+    username = StringField()
+    user_completed = IntegerField()
+    posted_scavenger_hunts = IntegerField()
+
+    def user_info_response(self):
+        return{
+            'username' : self.username,
+            'posted hunts' : self.posted_scavenger_hunts,
+            # 'all posted hunts' : Scavenger_hunt.,
+            'completed hunts' : self.user_completed
+            # 'all completed hunts': Scavenger_hunt.completed_response()
+        }
+
+    def delete_with_hunts(self):
+        Scavenger_hunt.objects.filter(my_user=self).delete()
+        self.delete()
+
+    def increase_user_completed(self):
+        self.user_completed += 1
+        self.save()
+
+    def increase_posted_hunts(self):
+        self.posted_scavenger_hunts += 1
+        self.save()
+
 
 class Scavenger_hunt(Model):
-    # user_posted = ForeignKey(User)
+    # user_posted = ForeignKey(User, related_name='posted_hunts')  # User who posted the hunt
+    my_user = ForeignKey(User)  # User engaging with the hunt
+    completed_user = StringField()
     location = StringField()
     hint = StringField()
     # image = BlobField()
@@ -40,19 +66,22 @@ class Scavenger_hunt(Model):
     
     def completed_response(self):
         return{
+            'scavenger hunt id' : self.id,
             'location' : self.location,
             'hint' : self.hint,
             'description' : self.description,
             'time limit' : f"{self.year}-{self.month}-{self.day}",
             'time completed' : self.time_completed,
             'code' : self.code,
-            'likes' : self.likes
+            'likes' : self.likes,
+            # 'user posted' : self.user_posted,
+            'user completed' : self.completed_user
         }
 
     def json_response(self):
 
         return {
-            # 'user_posted' : self.user_posted,
+            # 'my_user' : self.my_user,
             'description' : self.description,
             # 'image' : self.image,
             'time_limit' : f"{self.year}-{self.month}-{self.day}",
@@ -63,7 +92,6 @@ class Scavenger_hunt(Model):
     def hint_response(self):
 
         return {
-
             'description' : self.description,
             'hint' : self.hint,
             # 'image' : self.image,
@@ -76,6 +104,7 @@ class Scavenger_hunt(Model):
         #add likes by 1
         self.likes += 1
         self.save()
+
 
     # def check_code(self):
     #     if len(self.code) < 5:
