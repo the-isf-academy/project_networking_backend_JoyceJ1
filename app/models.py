@@ -15,7 +15,7 @@ class Scavenger_hunt(Model):
     year = IntegerField()
     month = IntegerField()
     day = IntegerField()
-    time_limit = BooleanField()
+    past_time = BooleanField()
     code = StringField()
     complete = BooleanField()
     active = BooleanField()
@@ -23,7 +23,31 @@ class Scavenger_hunt(Model):
     # comments = StringField()
     likes = IntegerField()
     current = BooleanField()
+    time_completed = StringField()
+    completed_day = IntegerField()
+
+    # def everything(self):
+    #     return{
+    #         'location' : self.location,
+    #         'timelimit' : f"{self.year}-{self.month}-{self.day}",
+    #         'past time' : self.past_time,
+    #         'complete' : self.complete,
+    #         'active' : self.active,
+    #         'current' : self.current,
+    #         'current_time' : datetime.datetime.now(),
+
+    #     }
     
+    def completed_response(self):
+        return{
+            'location' : self.location,
+            'hint' : self.hint,
+            'description' : self.description,
+            'time limit' : f"{self.year}-{self.month}-{self.day}",
+            'time completed' : self.time_completed,
+            'code' : self.code,
+            'likes' : self.likes
+        }
 
     def json_response(self):
 
@@ -68,24 +92,52 @@ class Scavenger_hunt(Model):
             return False
 
     
+    # def calculate_time(self):
+    #     current_time = datetime.datetime.now()
+    #     #checks the year
+    #     if current_time.year > self.year:
+    #         self.past_time = True
+    #         self.active = False
+    #     #checks the month
+    #     elif current_time.year == self.year:
+    #         if current_time.month > self.month:
+    #             self.past_time = True
+    #             self.active = False
+    #         #checks the day
+    #         elif current_time.year == self.year and current_time.month == self.month:
+    #             if current_time.day > self.day:
+    #                 self.past_time = True
+    #                 self.active = False
+    #     self.save()
+
     def calculate_time(self):
-        current_time = datetime.datetime.now()
-        #checks the year
-        if current_time.year > self.year:
-            self.time_limit = False
-        #checks the month
+        current_date = datetime.date.today()
+        hunt_date = datetime.date(self.year, self.month, self.day)
+        
+        print(f"Current Date: {current_date}")
+        print(f"Hunt Date: {hunt_date}")
+
+        if current_date > hunt_date:
+            self.past_time = True
+            self.active = False
         else:
-            if current_time.month > self.month:
-                self.time_limit = False
-            #checks the day
-            else:
-                if current_time.day > self.month:
-                    self.time_limit = False
+            self.past_time = False
+            self.active = True
+
+        print(f"Past Time: {self.past_time}, Active: {self.active}")
         self.save()
 
+
     def check_active(self):
-        self.calculate_time()
-        if self.complete == False and self.current == False and self.time_limit == True:
-            return True
-        else:
-            return False
+        return not self.complete and not self.current and not self.past_time
+    
+    def calc_time_completed(self):
+        complete_time = datetime.datetime.now()
+        self.time_completed = f"{complete_time.year}-{complete_time.month}-{complete_time.day}"
+        self.completed_day = complete_time.day
+        self.save()
+
+    # def hunt_limit(self):
+    #     if self.completed_day == datetime.datetime.now().day:
+    #         print(f"{self.completed_day},{datetime.datetime.now().day}")
+    #         return True
