@@ -7,14 +7,53 @@ class User(Model):
     username = StringField()
     user_completed = IntegerField()
     posted_scavenger_hunts = IntegerField()
+    rank = IntegerField(default=0)
 
     def user_info_response(self):
         return{
             'username' : self.username,
+            'rank' : self.rank,
             'posted hunts' : self.posted_scavenger_hunts,
             # 'all posted hunts' : Scavenger_hunt.,
             'completed hunts' : self.user_completed
-            # 'all completed hunts': Scavenger_hunt.completed_response()
+            # 'all completed hunts': Scavenger_hunt.completed_response(),
+        }
+
+    def delete_with_hunts(self):
+        Scavenger_hunt.objects.filter(my_user=self).delete()
+        self.delete()
+
+    def increase_user_completed(self):
+        self.user_completed += 1
+        self.save()
+        self.update_rank()
+
+    def increase_posted_hunts(self):
+        self.posted_scavenger_hunts += 1
+        self.save()
+    
+    def update_rank(self):
+        self.rank = User.objects.filter(user_completed__gt=self.user_completed).count() + 1
+        self.save()
+    
+
+
+class User(Model):
+    username = StringField()
+    user_completed = IntegerField()
+    posted_scavenger_hunts = IntegerField()
+
+    def user_info_response(self):
+        return {
+            'username': self.username,
+            'posted hunts': self.posted_scavenger_hunts,
+            'completed hunts': self.user_completed
+        }
+    
+    def user_rank_response(self):
+        return {
+            'username' : self.username,
+            'completed hunts' : self.user_completed
         }
 
     def delete_with_hunts(self):
@@ -31,12 +70,11 @@ class User(Model):
 
 
 class Scavenger_hunt(Model):
-    # user_posted = ForeignKey(User, related_name='posted_hunts')  # User who posted the hunt
-    my_user = ForeignKey(User)  # User engaging with the hunt
-    completed_user = StringField()
+    user_posted = ForeignKey(User, related_name='posted_hunts')  # User who posted the hunt
+    my_user = ForeignKey(User, null=True, blank=True, related_name='engaged_hunts')  # User engaging with the hunt
+    completed_user = ForeignKey(User, null=True, blank=True, related_name='completed_hunts')  # User who completed the hunt
     location = StringField()
     hint = StringField()
-    # image = BlobField()
     description = StringField()
     year = IntegerField()
     month = IntegerField()
@@ -45,13 +83,10 @@ class Scavenger_hunt(Model):
     code = StringField()
     complete = BooleanField()
     active = BooleanField()
-    # user_completed = StringField()
-    # comments = StringField()
     likes = IntegerField()
     current = BooleanField()
     time_completed = StringField()
     completed_day = IntegerField()
-
     # def everything(self):
     #     return{
     #         'location' : self.location,
@@ -64,19 +99,21 @@ class Scavenger_hunt(Model):
 
     #     }
     
+
     def completed_response(self):
-        return{
-            'scavenger hunt id' : self.id,
-            'location' : self.location,
-            'hint' : self.hint,
-            'description' : self.description,
-            'time limit' : f"{self.year}-{self.month}-{self.day}",
-            'time completed' : self.time_completed,
-            'code' : self.code,
-            'likes' : self.likes,
-            # 'user posted' : self.user_posted,
-            'user completed' : self.completed_user
+        return {
+            'scavenger_hunt_id': self.id,
+            'location': self.location,
+            'hint': self.hint,
+            'description': self.description,
+            'time_limit': f"{self.year}-{self.month}-{self.day}",
+            'time_completed': self.time_completed,
+            'code': self.code,
+            'likes': self.likes,
+            'user_completed': self.completed_user.username if self.completed_user else 'Not been completed'
         }
+
+
 
     def json_response(self):
 

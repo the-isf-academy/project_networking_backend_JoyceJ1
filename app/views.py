@@ -17,34 +17,34 @@ def create_user(args):
     return{'user':new_user.user_info_response()}
 
 
-@route_post(BASE_URL + 'new', args={'username':str,'location':str, 'hint': str, 'description': str, 'year': int, 'month': int, 'day': int, 'code': str})
+@route_post(BASE_URL + 'new', args={'username': str, 'location': str, 'hint': str, 'description': str, 'year': int, 'month': int, 'day': int, 'code': str})
 def new_scavenger_hunt(args):
     try:
         user = User.objects.get(username=args['username'])
     except User.DoesNotExist:
         return {'error': 'User does not exist. Please create a user first.'}
-    
+
     new_scavenger_hunt = Scavenger_hunt(
-        # user_posted=user,
-        my_user = user,
-        location = args['location'],
-        hint = args['hint'],
-        description = args['description'],
-        year = args['year'],
-        month = args['month'],
-        day = args['day'],
-        code = args['code'],
-        complete = False,
-        active = True,
-        current = False,
-        past_time = False,
-        likes = 0
+        user_posted=user,  # Set the user who posted the hunt
+        location=args['location'],
+        hint=args['hint'],
+        description=args['description'],
+        year=args['year'],
+        month=args['month'],
+        day=args['day'],
+        code=args['code'],
+        complete=False,
+        active=True,
+        current=False,
+        past_time=False,
+        likes=0
     )
 
     new_scavenger_hunt.save()
     user.increase_posted_hunts()
-
+    user.save()
     return {'scavenger hunt': new_scavenger_hunt.json_response()}
+
 
 # @route_get(BASE_URL + 'all')
 # def get_scavenger_hunt(args):
@@ -73,9 +73,9 @@ def get_active_scavenger_hunt(args):
     if Scavenger_hunt.objects.filter(completed_day=today.day, my_user=user).exists():
         return {'error': 'Already completed scavenger today, try again tomorrow'}
 
-    # active_hunts = Scavenger_hunt.objects.filter(active=True).exclude(user_posted=user)
-    active_hunts = Scavenger_hunt.objects.filter(active=True) | Scavenger_hunt.objects.filter(current=True, my_user=user)
-    active_hunts = active_hunts.exclude(my_user=user).distinct()
+    active_hunts = Scavenger_hunt.objects.filter(active=True).exclude(user_posted=user)
+    # active_hunts = Scavenger_hunt.objects.filter(active=True) | Scavenger_hunt.objects.filter(current=True, my_user=user)
+    # active_hunts = active_hunts.exclude(my_user=user).distinct()
 
     for hunt in active_hunts:
         # print(f"Processing Hunt: {hunt.description}, Date: {hunt.year}-{hunt.month}-{hunt.day}")
@@ -154,7 +154,7 @@ def complete_scavenger_hunt(args):
         current_scavenger_hunt = Scavenger_hunt.objects.filter(current=True, my_user=user)[0]
         if current_scavenger_hunt.check_code(args['code']) == True and current_scavenger_hunt.past_time == False:
             current_scavenger_hunt.current = False
-            current_scavenger_hunt.completed_user = args['username']
+            current_scavenger_hunt.completed_user = user
             current_scavenger_hunt.calc_time_completed()
             current_scavenger_hunt.save()
             user.increase_user_completed()
@@ -163,6 +163,7 @@ def complete_scavenger_hunt(args):
             return {'error': 'Inaccurate code or over time limit'}
     else:
         return {'error': 'No scavenger hunt exists'}
+
 
 
 # @route_get(BASE_URL + 'completed_hunts', args={'username': str})
@@ -199,10 +200,13 @@ def delete_scavenger_hunt(args):
         user = User.objects.get(username=args['username'])
     except User.DoesNotExist:
         return {'error': 'User does not exist. Please create a user first.'}
-    
-    hunt = Scavenger_hunt.objects.get(id=args['hunt_id'], my_user=user)
-    hunt.delete()
-    return {'status': 'Scavenger hunt deleted successfully'}
+
+    if Scavenger_hunt.objects.filter(id=args['hunt_id'], user_posted=user).exists():
+        delete_hunt = Scavenger_hunt.objects.get(id=args['hunt_id'], user_posted=user)
+        delete_hunt.delete()
+        return {'status': 'Scavenger hunt deleted successfully'}
+    else:
+        return {'error': 'No scavenger hunt found'}
 
 # @route_get(BASE_URL + 'view_user', args={'username': str})
 # def create_user(args):
@@ -223,18 +227,37 @@ def view_user(args):
     # Get completed scavenger hunts for the user
     completed_scavenger_hunts = []
     if Scavenger_hunt.objects.filter(complete=True, my_user=user).exists():
-        for hunt in Scavenger_hunt.objects.filter(complete=True, my_user=user.user_completed):
+        for hunt in Scavenger_hunt.objects.filter(complete=True, my_user=user):
             completed_scavenger_hunts.append(hunt.completed_response())
+    elif completed_scavenger_hunts == []:
+        completed_scavenger_hunts = 'No scavenger hunts completed'
 
-    # Get posted scavenger hunts for the user
+    # Get scavenger hunts posted by the user
+    
     posted_scavenger_hunts = []
-    if Scavenger_hunt.objects.filter(my_user=user).exists():
-        for hunt in Scavenger_hunt.objects.filter(my_user=user):
+    if Scavenger_hunt.objects.filter(user_posted=user).exists():
+        for hunt in Scavenger_hunt.objects.filter(user_posted=user):
             posted_scavenger_hunts.append(hunt.completed_response())
+    elif completed_scavenger_hunts == []:
+        completed_scavenger_hunts = 'No scavenger hunts posted'
 
-    # Combine user info with completed and posted hunts
+    users_ranked = User.objects.order_by('-user_completed')
+    rank = list(users_ranked).index(user) + 1
+
     user_info = user.user_info_response()
+    user_info['rank'] = rank
     user_info['completed_scavenger_hunts'] = completed_scavenger_hunts
     user_info['posted_scavenger_hunts'] = posted_scavenger_hunts
 
     return {'user': user_info}
+
+@route_get(BASE_URL + 'rankings')
+def get_rankings(args):
+    # Get all users ordered by completed hunts, descending
+    users = User.objects.order_by('-user_completed')
+    rank_list = []
+    for index, user in enumerate(users, start=1):
+        user_info = user.user_rank_response()
+        user_info['rank'] = index
+        rank_list.append(user_info)
+    return {'ranking_list': rank_list}
