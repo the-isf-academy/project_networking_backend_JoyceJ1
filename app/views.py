@@ -251,7 +251,7 @@ def view_user(args):
 
     return {'user': user_info}
 
-@route_get(BASE_URL + 'rankings')
+@route_get(BASE_URL + 'rank')
 def get_rankings(args):
     # Get all users ordered by completed hunts, descending
     users = User.objects.order_by('-user_completed')
