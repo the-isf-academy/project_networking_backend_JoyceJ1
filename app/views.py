@@ -22,8 +22,16 @@ def login_user(args):
         print(f"User '{username}' found in database.")
         return {'status': 'Login successful'}
     else:
-        print(f"User '{username}' does not exist.")
         return {'error': 'User does not exist. Please create a user first.'}
+    
+@route_post(BASE_URL + 'log_out', args={'username': str})
+def log_out(args):
+    try:
+        user = User.objects.get(username=args['username'])
+    except User.DoesNotExist:
+        return {'error': 'User does not exist. Please create a user first.'}
+    user.save()
+    return {'status': 'Logged out successfully'}
 
 @route_post(BASE_URL + 'new', args={'username': str, 'location': str, 'hint': str, 'description': str, 'year': int, 'month': int, 'day': int, 'code': str})
 def new_scavenger_hunt(args):
@@ -100,7 +108,7 @@ def show_current(args):
         else:
             return {'scavenger hunt': 'over time limit'}
     else:
-        return {'Error': 'no scavenger hunt exists'}
+        return {'error': 'no scavenger hunt exists'}
 
 # Adds likes to completed scavenger hunts
 @route_post(BASE_URL + 'like', args={'username': str, 'hunt_id': int})
