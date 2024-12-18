@@ -1009,7 +1009,7 @@ Call endpoints after the BASE_URL, explained above.
 
 Here's what is included:
 - `\app`
-    - `models.py` - `Fortune` model
+    - `models.py` - `Scavenger Hunt` model and `User` model
     - `views.py` - endpoints
 - `database.sqlite`  
 - `README.md` 
