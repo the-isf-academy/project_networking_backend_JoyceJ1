@@ -16,8 +16,7 @@ def create_user(args):
 
 @route_post(BASE_URL + 'login_user', args={'username': str})
 def login_user(args):
-    print("Login request received")  # Debugging line
-    username = args['username'].strip().lower()
+    username = args['username']
     if User.objects.filter(username=username).exists():
         print(f"User '{username}' found in database.")
         return {'status': 'Login successful'}
@@ -123,7 +122,7 @@ def increase_like(args):
         completed_hunt.increase_likes()
         return {'scavenger hunt': completed_hunt.json_response()}
     else:
-        return {'Error': 'no completed scavenger hunt exists'}
+        return {'error': 'no completed scavenger hunt exists'}
 
 # Get the hint for the scavenger hunt
 @route_get(BASE_URL + 'hint', args={'username': str})
